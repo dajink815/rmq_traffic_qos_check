@@ -1,10 +1,8 @@
 package media.platform.qos.service;
 
-import media.platform.qos.info.RmqTrafficInfo;
 import media.platform.qos.manager.RmqTrafficManager;
 import org.apache.commons.lang.SerializationUtils;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,11 +31,6 @@ public class ScenarioTest {
         System.out.println(cloneMap.get("A"));
     }
 
-    public void createRmqNode(List<String> nodeList) {
-        for (String nodeName : nodeList) {
-            manager.createRmqTrafficInfo(nodeName);
-        }
-    }
 
 
 

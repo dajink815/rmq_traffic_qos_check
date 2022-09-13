@@ -4,7 +4,7 @@ package media.platform.qos.common;
  * @author dajin kim
  */
 public enum ServiceDefine {
-    VERSION("1.0.2");
+    VERSION("1.0.3");
 
     private final String value;
 
