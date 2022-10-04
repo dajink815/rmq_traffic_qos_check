@@ -48,15 +48,21 @@ public class RmqTrafficManager extends NodeInfoManager {
     }
 
     /**
-     * TASK_INTERVAL 주기 스케쥴링
+     * @fn start
+     * @brief RmqTrafficManager 시작, TASK_INTERVAL 주기로 QOS 스케쥴링
+     * @param timer: 메시지 timeout 처리 시간
+     * @param msgGapLimit: 메시지 제한 응답 시간 (Unit:ms)
      */
     public void start(long timer, long msgGapLimit) {
-        log.warn("TRAFFIC_QOS_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
+        log.warn("RMQ_TRAFFIC_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
         if (timer <= 0) {
             log.warn("NEED TO CHECK TIMER : {} (mSec)", timer);
             timer = DEFAULT_TIMER;
         }
         this.timer = timer;
+        if (timer <= msgGapLimit) {
+            log.warn("NEED TO CHECK MSG_GAP_LIMIT : {} (mSec)", msgGapLimit);
+        }
         this.msgGapLimit = msgGapLimit;
 
         // HA
@@ -68,7 +74,7 @@ public class RmqTrafficManager extends NodeInfoManager {
 
     public void stop() {
         if (scheduleService != null) {
-            log.warn("TRAFFIC_QOS_MANAGER STOP ({})", ServiceDefine.VERSION.getValue());
+            log.warn("RMQ_TRAFFIC_MANAGER STOP ({})", ServiceDefine.VERSION.getValue());
             scheduleService.shutdown();
         }
     }
@@ -82,7 +88,7 @@ public class RmqTrafficManager extends NodeInfoManager {
 
         // HA 상태 변경
         if (haStatus != curStatus) {
-            log.warn("TRAFFIC_QOS_MANAGER STATUS CHANGED {} -> {}", haStatus, curStatus);
+            log.warn("RMQ_TRAFFIC_MANAGER STATUS CHANGED {} -> {}", haStatus, curStatus);
 
             // ACTIVE (Standby/Down -> Active)
             if (ACTIVE.equals(curStatus)) {
@@ -205,7 +211,7 @@ public class RmqTrafficManager extends NodeInfoManager {
             String recvCntStr = String.format("%3d", nodeInfo.getRecvMsgCnt());
             String totalStr = String.format("%4d", nodeInfo.getTotalTime());
 
-            if (this.msgGapLimit > 0 && gap >= this.msgGapLimit) {
+            if (this.msgGapLimit > 0 && this.msgGapLimit <= gap) {
                 log.warn("[{}] GAP: {}, Recv: {}, Total: {} - Over GapLimit {} ({}:{})",
                         getFormatName(nodeInfo), gapStr, recvCntStr, totalStr,
                         this.msgGapLimit, msgType, tId);
