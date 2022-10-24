@@ -67,19 +67,19 @@ public class NodeInfoManager {
      * */
     protected NodeInfo createNodeInfo(String targetQueue) {
         if (trafficMap.containsKey(targetQueue)) {
-            log.error("NodeInfo [{}] ALREADY EXIST", targetQueue);
+            log.error("[QOS] NodeInfo [{}] ALREADY EXIST", targetQueue);
             return null;
         }
 
         if (targetQueue.length() > MAX_NAME_LENGTH) {
-            log.warn("check NodeInfo targetQueue Name Length : {}", targetQueue.length());
+            log.warn("[QOS] check NodeInfo targetQueue Name Length : {}", targetQueue.length());
         }
 
         NodeInfo nodeInfo = new NodeInfo(targetQueue);
         nodeInfo.resetStats();
-        trafficMap.put(targetQueue, nodeInfo);
+        trafficMap.putIfAbsent(targetQueue, nodeInfo);
         checkFlag.set(true);
-        log.warn("NodeInfo [{}] is Created", targetQueue);
+        log.warn("[QOS] NodeInfo [{}] is Created", targetQueue);
         return nodeInfo;
     }
 
@@ -91,12 +91,12 @@ public class NodeInfoManager {
      * */
     protected NodeInfo getNodeInfo(String targetQueue) {
         if (targetQueue == null) {
-            log.warn("Target Queue Name [{}] is Null", targetQueue);
+            log.warn("[QOS] Target Queue Name is Null");
             return null;
         }
         NodeInfo nodeInfo = trafficMap.get(targetQueue);
-        if (nodeInfo == null)
-            log.warn("NodeInfo [{}] is Null", targetQueue);
+/*        if (nodeInfo == null)
+            log.warn("[QOS] NodeInfo [{}] is Null", targetQueue);*/
         return nodeInfo;
     }
 

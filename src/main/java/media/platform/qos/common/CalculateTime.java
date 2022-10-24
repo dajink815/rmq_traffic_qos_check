@@ -53,7 +53,7 @@ public class CalculateTime {
             try {
                 avgTime = (double) totalTime/recvMsgCnt;
             } catch (Exception e) {
-                log.error("CalculateTime.checkAvgTime ", e);
+                log.error("[QOS] CalculateTime.checkAvgTime ", e);
             }
         }
 

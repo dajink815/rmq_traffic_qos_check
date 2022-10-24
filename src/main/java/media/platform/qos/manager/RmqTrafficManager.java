@@ -23,6 +23,7 @@ public class RmqTrafficManager extends NodeInfoManager {
     private final QosRunnable qosRunnable;
 
     private static final long DEFAULT_TIMER = 5000;     // [Unit: mSec]
+    private static final long DEFAULT_MSG_GAP_LIMIT = 2000;
     private static final long TASK_INTERVAL = 1000;     // [Unit: mSec]
     private static final String REQ = "REQ";
     private static final String RES = "RES";
@@ -54,14 +55,15 @@ public class RmqTrafficManager extends NodeInfoManager {
      * @param msgGapLimit: 메시지 제한 응답 시간 (Unit:ms)
      */
     public void start(long timer, long msgGapLimit) {
-        log.warn("RMQ_TRAFFIC_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
+        log.warn("[QOS] RMQ_TRAFFIC_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
         if (timer <= 0) {
-            log.warn("NEED TO CHECK TIMER : {} (mSec)", timer);
+            log.warn("[QOS] NEED TO CHECK TIMER : {} (mSec)", timer);
             timer = DEFAULT_TIMER;
         }
         this.timer = timer;
-        if (timer <= msgGapLimit) {
-            log.warn("NEED TO CHECK MSG_GAP_LIMIT : {} (mSec)", msgGapLimit);
+        if (msgGapLimit <= 0 || timer <= msgGapLimit) {
+            log.warn("[QOS] NEED TO CHECK MSG_GAP_LIMIT : {} (mSec)", msgGapLimit);
+            msgGapLimit = DEFAULT_MSG_GAP_LIMIT;
         }
         this.msgGapLimit = msgGapLimit;
 
@@ -74,7 +76,7 @@ public class RmqTrafficManager extends NodeInfoManager {
 
     public void stop() {
         if (scheduleService != null) {
-            log.warn("RMQ_TRAFFIC_MANAGER STOP ({})", ServiceDefine.VERSION.getValue());
+            log.warn("[QOS] RMQ_TRAFFIC_MANAGER STOP ({})", ServiceDefine.VERSION.getValue());
             scheduleService.shutdown();
         }
     }
@@ -82,13 +84,13 @@ public class RmqTrafficManager extends NodeInfoManager {
     public void setHaStatus(int status) {
         StatusType curStatus = StatusType.getTypeEnum(status);
         if (curStatus == null) {
-            log.info("Check HaStatus Value: {}", status);
+            log.info("[QOS] Check HaStatus Value: {}", status);
             return;
         }
 
         // HA 상태 변경
         if (haStatus != curStatus) {
-            log.warn("RMQ_TRAFFIC_MANAGER STATUS CHANGED {} -> {}", haStatus, curStatus);
+            log.warn("[QOS] RMQ_TRAFFIC_MANAGER STATUS CHANGED {} -> {}", haStatus, curStatus);
 
             // ACTIVE (Standby/Down -> Active)
             if (ACTIVE.equals(curStatus)) {
@@ -128,7 +130,7 @@ public class RmqTrafficManager extends NodeInfoManager {
                     nodeInfo.clearTransactionMap();
                     int mapSize = nodeInfo.getTransactionMapSize();
                     if (prevMapSize != mapSize) {
-                        log.debug("[{}] Clear Transaction Map {} -> {}", getFormatName(nodeInfo), prevMapSize, mapSize);
+                        log.debug("[QOS] [{}] Clear Transaction Map {} -> {}", nodeInfo.getTargetQname(), prevMapSize, mapSize);
                     }
                 });
     }
@@ -163,7 +165,7 @@ public class RmqTrafficManager extends NodeInfoManager {
                 || !msgType.toUpperCase().contains(REQ)) {
 
             if (nodeInfo == null && msgType.toUpperCase().contains(REQ))
-                log.warn("[{}] Fail to Record Send Time - Target Node Info Null ({})", targetQueue, msgType);
+                log.warn("[QOS] [{}] Fail to Record Send Time - Target Node Info Null ({})", targetQueue, msgType);
             return;
         }
 
@@ -171,7 +173,7 @@ public class RmqTrafficManager extends NodeInfoManager {
             // sendCnt 누적
             nodeInfo.increaseSendMsgCnt();
         } else {
-            log.info("[{}] Fail to Record Send Time - Already Recorded ({}:{})", getFormatName(nodeInfo), msgType, tId);
+            log.info("[QOS] [{}] Fail to Record Send Time - Already Recorded ({}:{})", targetQueue, msgType, tId);
         }
     }
 
@@ -189,7 +191,7 @@ public class RmqTrafficManager extends NodeInfoManager {
                 || !msgType.toUpperCase().contains(RES)) {
 
             if (nodeInfo == null && msgType.toUpperCase().contains(RES))
-                log.warn("[{}] Fail to Record Receive Time - Target Node Info Null ({})", msgFrom, msgType);
+                log.warn("[QOS] [{}] Fail to Record Receive Time - Target Node Info Null ({})", msgFrom, msgType);
             return;
         }
 
@@ -212,18 +214,18 @@ public class RmqTrafficManager extends NodeInfoManager {
             String totalStr = String.format("%4d", nodeInfo.getTotalTime());
 
             if (this.msgGapLimit > 0 && this.msgGapLimit <= gap) {
-                log.warn("[{}] GAP: {}, Recv: {}, Total: {} - Over GapLimit {} ({}:{})",
-                        getFormatName(nodeInfo), gapStr, recvCntStr, totalStr,
+                log.warn("[QOS] [{}] GAP: {}, Recv: {}, Total: {} - Over GapLimit {} ({}:{})",
+                        msgFrom, gapStr, recvCntStr, totalStr,
                         this.msgGapLimit, msgType, tId);
             } else {
-                log.debug("[{}] GAP: {}, Recv: {}, Total: {} ({})",
-                        getFormatName(nodeInfo), gapStr, recvCntStr, totalStr, msgType);
+                log.debug("[QOS] [{}] GAP: {}, Recv: {}, Total: {} ({})",
+                        msgFrom, gapStr, recvCntStr, totalStr, msgType);
             }
         } else {
             if (!recvCheckDelay) {
-                log.warn("[{}] Fail to Record Receive Time - Message Info Null ({}:{}) ", getFormatName(nodeInfo), msgType, tId);
+                log.warn("[QOS] [{}] Fail to Record Receive Time - Message Info Null ({}:{}) ", msgFrom, msgType, tId);
             } else {
-                log.debug("[{}] Fail to Record Receive Time - Just Started. ({}:{})", getFormatName(nodeInfo), msgType, tId);
+                log.debug("[QOS] [{}] Fail to Record Receive Time - Just Started. ({}:{})", msgFrom, msgType, tId);
             }
         }
     }
@@ -237,7 +239,7 @@ public class RmqTrafficManager extends NodeInfoManager {
         // 에러로그 delay Flag - 현재 Active 일때 조건 추가 필요?
         if (recvCheckDelay && haTime + 5000 < System.currentTimeMillis()) {
             String haTimeStr = DateFormatUtil.formatYmdHmsS(haTime);
-            log.info("DELAY_FLAG {} -> {}, HA_TIME:{}", recvCheckDelay, false, haTimeStr);
+            log.info("[QOS] DELAY_FLAG {} -> {}, HA_TIME:{}", recvCheckDelay, false, haTimeStr);
             recvCheckDelay = false;
         }
 
@@ -260,8 +262,8 @@ public class RmqTrafficManager extends NodeInfoManager {
                         // 5초간 송수신한 RMQ 메시지가 있을 경우, 타임아웃 처리된 트랜잭션 존재할 경우 QOS 출력
                         int transactionCnt = nodeInfo.getSendMsgCnt() + nodeInfo.getRecvMsgCnt();
                         if (transactionCnt > 0 || timeoutCnt > 0 || nodeInfo.getTransactionMapSize() > 0) {
-                            log.info("[{}] QOS Avg:{}(MinMax:{}/{} T:{}), S:{}, R:{}, Timeout:{}, RemainMsg:{}",
-                                    getFormatName(nodeInfo), String.format("%.2f", avgTime), nodeInfo.getMinTime(), nodeInfo.getMaxTime(),
+                            log.info("[QOS] [{}] Avg:{}(MinMax:{}/{} T:{}), S:{}, R:{}, Timeout:{}, RemainMsg:{}",
+                                    nodeInfo.getTargetQname(), String.format("%.2f", avgTime), nodeInfo.getMinTime(), nodeInfo.getMaxTime(),
                                     nodeInfo.getTotalTime(), nodeInfo.getSendMsgCnt(), nodeInfo.getRecvMsgCnt(),
                                     timeoutCnt, nodeInfo.getTransactionMapSize());
 
@@ -274,30 +276,38 @@ public class RmqTrafficManager extends NodeInfoManager {
                 });
     }
 
+    public static void main(String[] args) {
+        double avgTime = 0;
+        System.out.println(String.format("%.2f", avgTime));
+    }
+
     /**
      * @fn checkTimeout
      * @brief NodeInfo 의 transactionMap 타임아웃 메시지 조회 및 제거
      * @param nodeInfo : 대상 노드의 NodeInfo
      * @return int : 타임아웃된 메시지 개수
      * */
-    private int checkTimeout(NodeInfo nodeInfo) {
+    private void checkTimeout(NodeInfo nodeInfo) {
 
-        nodeInfo.getTransactionIds().stream()
-                .filter(Objects::nonNull)
-                .filter(tId -> nodeInfo.isMsgTimeout(tId, this.timer))
-                .forEach(tId -> {
-                    MessageInfo messageInfo = nodeInfo.delMsgInfo(tId);
+        try {
+            nodeInfo.getTransactionIds().stream()
+                    .filter(Objects::nonNull)
+                    .filter(tId -> nodeInfo.isMsgTimeout(tId, this.timer))
+                    .forEach(tId -> {
+                        MessageInfo messageInfo = nodeInfo.delMsgInfo(tId);
 
-                    if (messageInfo != null) {
-                        String sendTimeStr = DateFormatUtil.formatYmdHmsS(messageInfo.getSendTime());
-                        nodeInfo.increaseTimeoutCnt();
-                        log.warn("[{}] TIMEOUT {} [{}] ({}, RemainMsg:{}, Timer:{}) ",
-                                getFormatName(nodeInfo), messageInfo.getMsgType(), tId,
-                                sendTimeStr, nodeInfo.getTransactionMapSize(), this.timer);
-                    }
-                });
+                        if (messageInfo != null) {
+                            String sendTimeStr = DateFormatUtil.formatYmdHmsS(messageInfo.getSendTime());
+                            nodeInfo.increaseTimeoutCnt();
+                            log.warn("[QOS] [{}] TIMEOUT {} [{}] ({}, RemainMsg:{}, Timer:{}) ",
+                                    nodeInfo.getTargetQname(), messageInfo.getMsgType(), tId,
+                                    sendTimeStr, nodeInfo.getTransactionMapSize(), this.timer);
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("[QOS] [{}] checkTimeout.Exception ", nodeInfo.getTargetQname(), e);
+        }
 
-        return nodeInfo.getTimeoutCnt();
     }
 
     static class QosRunnable implements Runnable {
