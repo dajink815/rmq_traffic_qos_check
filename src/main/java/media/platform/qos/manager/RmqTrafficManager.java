@@ -215,7 +215,7 @@ public class RmqTrafficManager extends NodeInfoManager {
                 String recvCntStr = String.format("%3d", nodeInfo.getRecvMsgCnt());
                 String totalStr = String.format("%4d", nodeInfo.getTotalTime());
 
-                if (this.msgGapLimit > 0 && this.msgGapLimit <= gap) {
+                if (0 < this.msgGapLimit && this.msgGapLimit <= gap) {
                     log.warn("[QOS] [{}] GAP: {}, Recv: {}, Total: {} - Over GapLimit {} ({}:{})",
                             msgFrom, gapStr, recvCntStr, totalStr, this.msgGapLimit, msgType, tId);
                 } else {

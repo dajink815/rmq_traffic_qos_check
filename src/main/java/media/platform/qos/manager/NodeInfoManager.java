@@ -1,12 +1,10 @@
 package media.platform.qos.manager;
 
-import media.platform.qos.common.DateFormatUtil;
 import media.platform.qos.info.NodeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,21 +98,5 @@ public class NodeInfoManager {
             log.warn("[QOS] NodeInfo [{}] is Null", targetQueue);*/
         return nodeInfo;
     }
-
-    public static void main(String[] args) {
-        long interval = 1000;
-
-        ScheduledExecutorService scheduleService = Executors.newScheduledThreadPool(1);
-        scheduleService.scheduleAtFixedRate(() -> {
-                    int curSecond = Calendar.getInstance().get(Calendar.SECOND);
-                    if (curSecond % 30 == 0) {
-                        System.out.println(DateFormatUtil.formatYmdHmsS(System.currentTimeMillis()));
-                    }
-                },
-                interval - System.currentTimeMillis() % interval,
-                interval,
-                TimeUnit.MILLISECONDS);
-    }
-
 
 }
