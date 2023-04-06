@@ -19,6 +19,12 @@ public class StringUtil {
         return msgType.toUpperCase().contains(RES);
     }
 
+    public static boolean isNull(String str) {
+        return str == null || str.isEmpty();
+    }
 
+    public static boolean notNull(String str) {
+        return str != null && !str.isEmpty();
+    }
 
 }

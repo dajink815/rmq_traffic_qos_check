@@ -6,42 +6,28 @@
     <groupId>media.platform.qos</groupId>
     <artifactId>traffic_qos_check</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.5</version>
+    <version>1.1.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <logback.version>1.2.3</logback.version>
-        <slf4j.version>1.7.30</slf4j.version>
+
+        <oamlib.version>1.1.11</oamlib.version>
+        <maven.test.skip>true</maven.test.skip>
     </properties>
 
-    <distributionManagement>                               <!--프로젝트가 배포될 저장소 정보와 설정-->
+    <repositories>
         <repository>
-            <id>mediaRepo</id>                                <!--Nexus 계정 정보 접근을 위해 settings.xml에서 설정한 id와 동일한 값-->
-            <name>maven-releases</name>                                                                   <!--Release Repo 이름(Optional)-->
-            <url>http://192.168.7.33:8082/repository/maven-releases/</url>                   <!--Release Repo url-->
+            <id>mediaRepo</id>
+            <name>media Repository</name>
+            <url>http://192.168.7.33:8082/repository/maven-public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
         </repository>
-    </distributionManagement>
+    </repositories>
 
     <dependencies>
-
-<!--        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>-->
-
         <dependency>
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
@@ -69,6 +55,12 @@
             <artifactId>junit</artifactId>
             <version>4.13</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>media.platform.uaoam</groupId>
+            <artifactId>oamlib</artifactId>
+            <version>${oamlib.version}</version>
         </dependency>
     </dependencies>
 

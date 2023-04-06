@@ -3,6 +3,8 @@ package media.platform.qos.manager;
 import media.platform.qos.common.*;
 import media.platform.qos.info.MessageInfo;
 import media.platform.qos.info.NodeInfo;
+import media.platform.uaoamlib.OamManager;
+import media.platform.uaoamlib.common.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
@@ -14,7 +16,7 @@ import static media.platform.qos.common.StatusType.*;
  *
  * @author dajin kim
  */
-public class RmqTrafficManager extends NodeInfoManager {
+public class RmqTrafficManager extends NodeInfoManager implements RmqTrafficInterface {
     private static final Logger log = LoggerFactory.getLogger(RmqTrafficManager.class);
     private static RmqTrafficManager rmqTrafficManager = null;
 
@@ -34,6 +36,9 @@ public class RmqTrafficManager extends NodeInfoManager {
     private long timer;
     private long msgGapLimit;
 
+    // OAM
+    private final OamManager oamManager = OamManager.getInstance();
+
     private RmqTrafficManager() {
         this.scheduleService = Executors.newScheduledThreadPool(1);
         this.qosRunnable = new QosRunnable();
@@ -46,32 +51,39 @@ public class RmqTrafficManager extends NodeInfoManager {
         return rmqTrafficManager;
     }
 
-    /**
-     * @fn start
-     * @brief RmqTrafficManager 시작, TASK_INTERVAL 주기로 QOS 스케쥴링
-     * @param timer: 메시지 timeout 처리 시간
-     * @param msgGapLimit: 메시지 제한 응답 시간 (Unit:ms)
-     */
+    @Override
     public void start(long timer, long msgGapLimit) {
-        log.warn("[QOS] RMQ_TRAFFIC_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
-        if (timer <= 0) {
-            log.warn("[QOS] NEED TO CHECK TIMER : {} (mSec)", timer);
-            timer = DEFAULT_TIMER;
-        }
-        this.timer = timer;
-        if (msgGapLimit <= 0 || timer <= msgGapLimit) {
-            log.warn("[QOS] NEED TO CHECK MSG_GAP_LIMIT : {} (mSec)", msgGapLimit);
-            msgGapLimit = DEFAULT_MSG_GAP_LIMIT;
-        }
-        this.msgGapLimit = msgGapLimit;
+/*        // INIT OAM  -> 이미 A2S 에서 init 완료
+        if (StringUtil.notNull(oamConfig)) {
+            oamManager.init(oamConfig);
+        }*/
 
-        // HA
-        this.recvCheckDelay = true;
-        setHaTime();
+       // todo 버전
+       log.warn("[QOS] RMQ_TRAFFIC_MANAGER START, TIMER:{}, MSG_GAP_LIMIT:{} ({})", timer, msgGapLimit, ServiceDefine.VERSION.getValue());
+       if (timer <= 0) {
+           log.warn("[QOS] NEED TO CHECK TIMER : {} (mSec)", timer);
+           timer = DEFAULT_TIMER;
+       }
+       this.timer = timer;
+       if (msgGapLimit <= 0 || timer <= msgGapLimit) {
+           log.warn("[QOS] NEED TO CHECK MSG_GAP_LIMIT : {} (mSec)", msgGapLimit);
+           msgGapLimit = DEFAULT_MSG_GAP_LIMIT;
+       }
+       this.msgGapLimit = msgGapLimit;
 
-        scheduleService.scheduleAtFixedRate(qosRunnable, TASK_INTERVAL - System.currentTimeMillis() % TASK_INTERVAL, TASK_INTERVAL, TimeUnit.MILLISECONDS);
+       // HA
+       this.recvCheckDelay = true;
+       setHaTime();
+
+       scheduleService.scheduleAtFixedRate(qosRunnable, TASK_INTERVAL - System.currentTimeMillis() % TASK_INTERVAL, TASK_INTERVAL, TimeUnit.MILLISECONDS);
+
+/*       oamManager.alarmRecord("HEARTBEAT_ALARM", "AWF", Level.NOR, "AWF Heartbeat Timeout");
+       log.debug("AWF HB Timeout Alarm Off");*/
+/*       oamManager.eventAdd("qos", "server.event.{yyyyMMdd}");
+       oamManager.eventGenerate("qos", Level.MIN, "TrafficManager Started");*/
     }
 
+    @Override
     public void stop() {
         if (scheduleService != null) {
             log.warn("[QOS] RMQ_TRAFFIC_MANAGER STOP ({})", ServiceDefine.VERSION.getValue());
@@ -79,6 +91,7 @@ public class RmqTrafficManager extends NodeInfoManager {
         }
     }
 
+    @Override
     public void setHaStatus(int status) {
         StatusType curStatus = StatusType.getTypeEnum(status);
         if (curStatus == null) {
@@ -107,10 +120,12 @@ public class RmqTrafficManager extends NodeInfoManager {
         }
     }
 
+    @Override
     public long getTimer() {
         return timer;
     }
 
+    @Override
     public long getMsgGapLimit() {
         return msgGapLimit;
     }
@@ -133,25 +148,17 @@ public class RmqTrafficManager extends NodeInfoManager {
                 });
     }
 
-    /**
-     * @fn addExcludedRmqType
-     * @param msgType : Traffic 계산에 포함되지 않는 Message Type
-     * */
+    @Override
     public void addExcludedRmqType(String msgType) {
         excludedMsgType.add(msgType);
     }
 
+    @Override
     public List<String> getExcludedRmqType() {
         return excludedMsgType;
     }
 
-    /**
-     * @fn rmqSendTimeCheck
-     * @brief 메시지 전송시 호출하는 함수, 메시지의 tId 로 전송시간 기록
-     * @param targetQueue : peer Node QueueName
-     * @param tId : Message transactionId
-     * @param msgType : Message Type
-     * */
+    @Override
     public void rmqSendTimeCheck(String targetQueue, String tId, String msgType) {
         NodeInfo nodeInfo = getNodeInfo(targetQueue);
         if (nodeInfo == null) {
@@ -179,13 +186,7 @@ public class RmqTrafficManager extends NodeInfoManager {
         }
     }
 
-    /**
-     * @fn rmqRecvTimeCheck
-     * @brief 메시지 수신시 호출하는 함수, 메시지의 tId 로 전송시간 조회 후 응답시간 계산
-     * @param msgFrom : Message msgFrom (peer Node QueueName)
-     * @param tId : Message transactionId
-     * @param msgType : Message Type
-     * */
+    @Override
     public void rmqRecvTimeCheck(String msgFrom, String tId, String msgType) {
         NodeInfo nodeInfo = getNodeInfo(msgFrom);
 
