@@ -16,7 +16,7 @@ public class NodeInfoManager {
     private static final Logger log = LoggerFactory.getLogger(NodeInfoManager.class);
 
     // NodeKey (QueueName) : NodeInfo
-    protected static final ConcurrentHashMap<String, NodeInfo> trafficMap = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, NodeInfo> trafficMap = new ConcurrentHashMap<>();
 
     private static final AtomicBoolean checkFlag = new AtomicBoolean(true);
     private static final int MAX_NAME_LENGTH = 10;
