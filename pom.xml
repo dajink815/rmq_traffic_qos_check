@@ -6,7 +6,7 @@
     <groupId>media.platform.qos</groupId>
     <artifactId>traffic_qos_check</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -14,16 +14,13 @@
         <maven.test.skip>true</maven.test.skip>
     </properties>
 
-    <repositories>
+    <distributionManagement>                               <!--프로젝트가 배포될 저장소 정보와 설정-->
         <repository>
-            <id>mediaRepo</id>
-            <name>media Repository</name>
-            <url>http://192.168.7.33:8082/repository/maven-public/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
+            <id>mediaRepo</id>                                <!--Nexus 계정 정보 접근을 위해 settings.xml에서 설정한 id와 동일한 값-->
+            <name>maven-releases</name>                                                                   <!--Release Repo 이름(Optional)-->
+            <url>http://192.168.7.33:8082/repository/maven-releases/</url>                   <!--Release Repo url-->
         </repository>
-    </repositories>
+    </distributionManagement>
 
     <dependencies>
 

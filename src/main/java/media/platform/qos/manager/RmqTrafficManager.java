@@ -174,6 +174,11 @@ public class RmqTrafficManager extends NodeInfoManager implements RmqTrafficInte
     @Override
     public void rmqRecvTimeCheck(String msgFrom, String tId, String msgType) {
         NodeInfo nodeInfo = getNodeInfo(msgFrom);
+        // 먼저 메시지를 송신할 일이 없는 노드의 경우
+        if (nodeInfo == null) {
+            nodeInfo = createNodeInfo(msgFrom);
+            log.info("[QOS] Created NodeInfo [{}] at RmqRecvTimeCheck (msgType:{})", msgFrom, msgType);
+        }
 
         // 해당 노드에서 보낸 후 응답받은 메시지만 응답시간 체크
         if (excludedMsgType.contains(msgType) || tId == null
