@@ -3,12 +3,13 @@ package media.platform.qos.manager;
 import media.platform.qos.common.*;
 import media.platform.qos.info.MessageInfo;
 import media.platform.qos.info.NodeInfo;
+import media.platform.qos.info.TrafficInfo;
 import media.platform.uaoamlib.OamManager;
-import media.platform.uaoamlib.common.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Predicate;
 
 import static media.platform.qos.common.StatusType.*;
 /**
@@ -38,6 +39,38 @@ public class RmqTrafficManager extends NodeInfoManager implements RmqTrafficInte
 
     // OAM
     private final OamManager oamManager = OamManager.getInstance();
+    private Runnable onEvent;
+    private Predicate<TrafficInfo> checkCondition;
+
+    // Runnable, Predicate 하나의 객체로 관리
+    private final Map<String, Runnable> onEvents = new HashMap<>();
+    private final Map<String, Predicate<TrafficInfo>> eventConditions = new HashMap<>();
+
+    private final TrafficInfo trafficInfo = new TrafficInfo();
+
+    public void setOnEvent(Runnable onEvent) {
+        this.onEvent = onEvent;
+    }
+
+    public void setCheckCondition(Predicate<TrafficInfo> checkCondition) {
+        this.checkCondition = checkCondition;
+    }
+
+    public void addEventCondition(String key, Runnable onEvent, Predicate<TrafficInfo> checkCondition) {
+        if (onEvents.containsKey(key)) {
+
+            return;
+        }
+
+        onEvents.put(key, onEvent);
+        eventConditions.put(key, checkCondition);
+        log.info("Added {} Event Condition", key);
+    }
+
+
+    public TrafficInfo getTrafficInfo() {
+        return trafficInfo;
+    }
 
     private RmqTrafficManager() {
         this.scheduleService = Executors.newScheduledThreadPool(1);
@@ -81,6 +114,22 @@ public class RmqTrafficManager extends NodeInfoManager implements RmqTrafficInte
        log.debug("AWF HB Timeout Alarm Off");*/
 /*       oamManager.eventAdd("qos", "server.event.{yyyyMMdd}");
        oamManager.eventGenerate("qos", Level.MIN, "TrafficManager Started");*/
+
+        trafficInfo.setTimeout(true);
+        trafficInfo.setCps(11);
+/*        if (onEvent != null && checkCondition != null && checkCondition.test(trafficInfo)) {
+            log.debug("TrafficInfo : {}", trafficInfo));
+            onEvent.run();
+        }*/
+
+        eventConditions.forEach((key, eventCondition) -> {
+            if (eventCondition.test(trafficInfo)) {
+                Optional.ofNullable(onEvents.get(key)).ifPresent(event -> {
+                    event.run();
+                    log.info("{} Event Run ({})", key, trafficInfo);
+                });
+            }
+        });
     }
 
     @Override
